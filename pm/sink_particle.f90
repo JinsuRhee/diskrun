@@ -3201,6 +3201,7 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
         vp(ind_part(j),2)=vp(ind_part(j),2)/mp(ind_part(j))
         vp(ind_part(j),3)=vp(ind_part(j),3)/mp(ind_part(j))
 
+        !! TODO: Slow when numbp is huge
         if (MC_tracer) then
            ! MC Tracer
            ! The gas is coming from the central cell (and the tracers)

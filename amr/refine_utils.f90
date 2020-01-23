@@ -375,10 +375,12 @@ subroutine refine_fine(ilevel)
   if(numbtot(1,ilevel)==0)return
   if(verbose)write(*,111)ilevel
 
+  if(exact_timer) call timer('refine1', 'start')
   !--------------------------
   ! Compute authorization map
   !--------------------------
   call authorize_fine(ilevel)
+  if(exact_timer) call timer('refine2', 'start')
 
   if(.not. shrink)then
   !---------------------------------------------------
@@ -403,6 +405,7 @@ subroutine refine_fine(ilevel)
 #endif
     call ranf(tracer_seed,rand)
 
+  if(exact_timer) call timer('refine3', 'start')
   !------------------------------------
   ! Refine cells marked for refinement
   !------------------------------------
@@ -496,6 +499,7 @@ subroutine refine_fine(ilevel)
 !$omp end do nowait
   end do
 !$omp end parallel
+  if(exact_timer) call timer('refine4', 'start')
   used_mem=ngridmax-numbf
   if(verbose)write(*,112)ncreate
   endif
@@ -582,6 +586,7 @@ subroutine refine_fine(ilevel)
   end do
 !$omp end parallel
   if(verbose)write(*,113)nkill
+  if(exact_timer) call timer('mpi', 'start')
 
   ! Compute grid number statistics at level ilevel+1
 #ifndef WITHOUTMPI
@@ -604,6 +609,7 @@ subroutine refine_fine(ilevel)
   used_mem_tot=used_mem
 #endif
   numbtot(4,ilevel+1)=numbtot(1,ilevel+1)/ncpu
+  if(exact_timer) call timer('refine', 'start')
 
 111 format('   Entering refine_fine for level ',I2)
 112 format('   ==> Make ',i6,' sub-grids')

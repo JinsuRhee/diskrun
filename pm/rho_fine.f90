@@ -43,6 +43,7 @@ subroutine rho_fine(ilevel,icount)
   dx_loc=dx*scale
   if(ilevel==levelmin)multipole=0d0
 
+  if(exact_timer) call timer('particles - cic1', 'start')
   !-------------------------------------------------------
   ! Initialize rho to analytical and baryon density field
   !-------------------------------------------------------
@@ -79,6 +80,7 @@ subroutine rho_fine(ilevel,icount)
 #ifdef DICE
  endif
 #endif
+  if(exact_timer) call timer('particles - cic2', 'start')
   !--------------------------
   ! Initialize fields to zero
   !--------------------------
@@ -161,6 +163,7 @@ subroutine rho_fine(ilevel,icount)
      end do
   end do
 !$omp end parallel
+  if(exact_timer) call timer('particles - cic3', 'start')
   !---------------------------------------------------------
   ! Compute particle contribution to density field
   !---------------------------------------------------------
@@ -168,6 +171,7 @@ subroutine rho_fine(ilevel,icount)
   if(pic)then
      call rho_from_current_level(ilevel)
   end if
+  if(exact_timer) call timer('particles - cic4', 'start')
   ! Update boudaries
   ! Main bottleneck
   call make_virtual_reverse_dp(rho(1),ilevel)
@@ -186,6 +190,7 @@ subroutine rho_fine(ilevel,icount)
   !--------------------------------------------------------------
   ! Compute multipole contribution from all cpus and set rho_tot
   !--------------------------------------------------------------
+  if(exact_timer) call timer('mpi', 'start')
 #ifndef WITHOUTMPI
   if(ilevel==levelmin)then
      multipole_in=multipole
@@ -193,6 +198,7 @@ subroutine rho_fine(ilevel,icount)
      multipole=multipole_out
   endif
 #endif
+  if(exact_timer) call timer('particles - cic5', 'start')
   if(nboundary==0)then
      rho_tot=multipole(1)/scale**ndim
      if(debug)write(*,*)'rho_average=',rho_tot
