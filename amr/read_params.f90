@@ -35,7 +35,8 @@ subroutine read_params
   namelist/run_params/clumpfind,cosmo,pic,sink,sinkprops,lightcone,poisson,hydro,rt,verbose,debug &
        & ,nrestart,nrestart_seek,ncontrol,nstepmax,nsubcycle,load_weights,part_univ_cost,exact_timer,nremap,ordering &
        & ,bisec_tol,static,overload,cost_weighting,aton,nrestart_quad,restart_remap &
-       & ,static_dm,static_gas,static_stars,convert_birth_times,use_proper_time,remap_pscalar,dtstop,nthr_cg,magic_number
+       & ,static_dm,static_gas,static_stars,convert_birth_times,use_proper_time,remap_pscalar &
+       & ,dtstop,nthr_cg,magic_number,nchunk
   namelist/output_params/output,noutput,foutput,aout,tout &
        & ,tend,delta_tout,aend,delta_aout,gadget_output,walltime_hrs,minutes_dump &
        & ,dump_stop,foutput_timer,wallstep
@@ -88,8 +89,14 @@ subroutine read_params
 #ifdef _OPENMP
 !$omp parallel private(mythr)
   mythr=omp_get_thread_num()+1
-  if(mythr==1)nthr=omp_get_num_threads()
-  nthr_cg = MIN(nthr, nthr_cg)
+  if(mythr==1) then
+     nthr=omp_get_num_threads()
+     if(nthr_cg<=0) then
+        nthr_cg=nthr
+     else
+        nthr_cg = MIN(nthr,nthr_cg)
+     end if
+  end if
 !$omp end parallel
 #endif
   !--------------------------------------------------
@@ -108,18 +115,15 @@ subroutine read_params
   write(*,*)'               (c) CEA 1999-2007, UZH 2008-2014                '
   write(*,*)' '
 #ifdef _OPENMP
-  write(*,'(" Working with nproc = ",I4," and nthread = ",I3," for ndim = ",I1)')ncpu,nthr,ndim
+  write(*,'(" Working with nproc = ",I4," and nthr = ",I3," for ndim = ",I1)')ncpu,nthr,ndim
+  write(*,'(" With nvector = ",I3," and nchunk = ",I3," and nthr_cg = ",I3)')nvector,nchunk,nthr_cg
 #else
   write(*,'(" Working with nproc = ",I4," for ndim = ",I1)')ncpu,ndim
-#endif
-  ! Check nvar is not too small
-#ifdef OMP_NCHUNK
-  write(*,'(" With nvector = ",I3," and nchunk = ",I3)')nvector,nchunk
-#else
   write(*,'(" With nvector = ",I3)')nvector
 #endif
 #ifdef SOLVERhydro
   write(*,'(" Using solver = hydro with nvar = ",I2)')nvar
+  ! Check nvar is not too small
   if(nvar<ndim+2)then
      write(*,*)'You should have: nvar>=ndim+2'
      write(*,'(" Please recompile with -DNVAR=",I2)')ndim+2
