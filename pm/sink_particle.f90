@@ -20,6 +20,7 @@ subroutine create_sink
   ! local constants
   integer::ilevel,ivar
 
+  call timer('sink - create1', 'start')
   if(verbose)write(*,*)' Entering create_sink'
   ! Move particles to finer levels
   do ilevel=levelmin,nlevelmax
@@ -27,11 +28,13 @@ subroutine create_sink
      call virtual_tree_fine(ilevel)
   end do
 
+  call timer('sink - create2', 'start')
   ! Get the star density value in each cell
   do ilevel=levelmin,nlevelmax
      call get_rho_star(ilevel)
   enddo
 
+  call timer('sink - create3', 'start')
   ! Create new sink particles
   ! and attach all the particles to the grid at level 1
   call make_sink(nlevelmax)
@@ -40,18 +43,23 @@ subroutine create_sink
      call merge_tree_fine(ilevel)
   end do
 
+  call timer('sink - create4', 'start')
   ! Remove particle clouds around old sinks
   call kill_entire_cloud(1)
 
+  call timer('sink - create5', 'start')
   ! update sink position before merging sinks and creating clouds
   call update_sink_position_velocity
 
+  call timer('sink - create6', 'start')
   ! Merge sink using FOF
   call merge_sink(1)
 
+  call timer('sink - create7', 'start')
   ! Create new particle clouds
   call create_cloud_from_sink
 
+  call timer('sink - create8', 'start')
   ! Scatter particle back onto to the grid
   do ilevel=1,nlevelmax
      call make_tree_fine(ilevel)
@@ -59,6 +67,7 @@ subroutine create_sink
      call virtual_tree_fine(ilevel)
   end do
 
+  call timer('sink - create9', 'start')
   ! Update hydro quantities for split cells
   if(hydro)then
      do ilevel=nlevelmax,levelmin,-1
@@ -75,6 +84,7 @@ subroutine create_sink
      end do
   end if
 
+  call timer('sink - create10', 'start')
   jsink=0d0
   ! Compute Bondi parameters and gather particle
   do ilevel=nlevelmax,levelmin,-1
