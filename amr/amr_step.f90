@@ -397,7 +397,7 @@ recursive subroutine amr_step(ilevel,icount)
      ! MC Tracer
      ! Communicate fluxes accross boundaries
      if(MC_tracer)then
-                                call timer('tracer','start')
+                                call timer('tracer1','start')
         do ivar=1,twondim
            call make_virtual_reverse_dp(fluxes(1,ivar),ilevel-1)
            call make_virtual_fine_dp(fluxes(1,ivar),ilevel-1)
@@ -473,7 +473,7 @@ recursive subroutine amr_step(ilevel,icount)
   end if
   ! Move tracer particles in the jet.
   if (sink_AGN .and. MC_tracer) then
-                                call timer('tracer','start')
+                                call timer('tracer2','start')
      call MC_tracer_to_jet(ilevel)
   end if
 
@@ -550,7 +550,7 @@ recursive subroutine amr_step(ilevel,icount)
 
   ! Reset move flag flag
   if(MC_tracer) then
-                                call timer('tracer','start')
+                                call timer('tracer3','start')
      ! Decrease the move flag by 1
      call reset_tracer_move_flag(ilevel)
   end if
