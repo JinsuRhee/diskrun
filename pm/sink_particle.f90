@@ -5866,9 +5866,17 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                 uold(ind_cell(i),5)=uold(ind_cell(i),5)+p_gas(iAGN)*d
                              else
                                 uold(ind_cell(i),5)=uold(ind_cell(i),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                                EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                                if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                   write(*,*) 'Esave error 1'
+                                   write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                                end if
+                                EsaveAGN(iAGN)=EsaveAGN(iAGN) + (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                              endif
                           else
+                             if(p_gas(iAGN)*d*vol_loc>1E2) then
+                                write(*,*) 'Esave error 2'
+                                write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_lo
+                             end if
                              EsaveAGN(iAGN)=EsaveAGN(iAGN)+p_gas(iAGN)*d*vol_loc
                           endif
                        endif
@@ -5981,6 +5989,10 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                    ! old internal energy (Temperature does not increase!)
                                    uold(ind_cell(i),5)=ekk+eint
                                    T2_2=(gamma-1d0)*(etot-uold(ind_cell(i),5))/d*scale_T2
+                                   if(T2_2/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                      write(*,*) 'Esave error 3'
+                                      write(*,*) T2_2, scale_T2, gamma, d, vol_loc, T2_2/scale_T2/(gamma-1d0)*d*vol_loc
+                                   end if
                                    EsaveAGN(iAGN)=EsaveAGN(iAGN)+T2_2/scale_T2/(gamma-1d0)*d*vol_loc
                                 else
                                    ! Compute new total energy
@@ -5994,6 +6006,10 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                       uold(ind_cell(i),5)=ekk+T2_2/scale_T2/(gamma-1d0)*d
                                    else
                                       uold(ind_cell(i),5)=ekk+T2maxAGNz/scale_T2/(gamma-1d0)*d
+                                      if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                         write(*,*) 'Esave error 4'
+                                         write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                                      end if
                                       EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                    endif
                                 endif
@@ -6030,9 +6046,17 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                    uold(ind_cell(i),5)=uold(ind_cell(i),5)+p_gas(iAGN)*d
                                 else
                                    uold(ind_cell(i),5)=uold(ind_cell(i),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
+                                   if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                      write(*,*) 'Esave error 5'
+                                      write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                                   end if
                                    EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                 endif
                              else
+                                if(p_gas(iAGN)*d*vol_loc>1E2) then
+                                   write(*,*) 'Esave error 6'
+                                   write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_lo
+                                end if
                                 EsaveAGN(iAGN)=EsaveAGN(iAGN)+p_gas(iAGN)*d*vol_loc
                              endif
 
@@ -6083,9 +6107,17 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
               else
 !$omp atomic update
                  uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
+                 if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                    write(*,*) 'Esave error 7'
+                    write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                 end if
                  EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
               endif
            else
+              if(EAGN(iAGN)>1E2) then
+                 write(*,*) 'Esave error 8'
+                 write(*,*) EAGN(iAGN)
+              end if
               EsaveAGN(iAGN)=EsaveAGN(iAGN)+EAGN(iAGN)
            endif
 
@@ -6129,9 +6161,17 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                  else
 !$omp atomic update
                     uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
+                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                       write(*,*) 'Esave error 9'
+                       write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                    end if
                     EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                  endif
               else
+                 if(EAGN(iAGN)>1E2) then
+                    write(*,*) 'Esave error 10'
+                    write(*,*) EAGN(iAGN)
+                 end if
                  EsaveAGN(iAGN)=EsaveAGN(iAGN)+EAGN(iAGN)
               endif
 
@@ -6156,9 +6196,17 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                  else
 !$omp atomic update
                     uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
+                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                       write(*,*) 'Esave error 11'
+                       write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                    end if
                     EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                  endif
               else
+                 if(EAGN(iAGN)>1E2) then
+                    write(*,*) 'Esave error 12'
+                    write(*,*) EAGN(iAGN)
+                 end if
                  EsaveAGN(iAGN)=EsaveAGN(iAGN)+EAGN(iAGN)
               endif
 
