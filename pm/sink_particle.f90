@@ -5736,6 +5736,11 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
         EAGN (iAGN)=EsaveAGN(iAGN)
         if (vol_gas(iAGN) .gt. 0d0) then !!!
            p_gas(iAGN)=EAGN    (iAGN) / vol_gas(iAGN)
+           if(p_gas(iAGN)>1D100)then
+              write(*,*) 'pgas error 1'
+              write(*,*) EAGN    (iAGN), vol_gas(iAGN)
+           end if
+
         else
            p_gas(iAGN) = 0.0d0
         end if
@@ -5763,16 +5768,28 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
               eff_mad=eff_mad/100d0
               EAGN(iAGN)=eff_mad*dMsmbh_AGN(iAGN)*(3d10/scale_v)**2d0
               p_gas(iAGN)=(1d0-f_ekAGN)*EAGN(iAGN) / vol_gas(iAGN)
+              if(p_gas(iAGN)>1D100)then
+                 write(*,*) 'pgas error 2'
+                 write(*,*) f_ekAGN, EAGN(iAGN), vol_gas(iAGN)
+              end if
               if(mAGN(iAGN).gt.0d0)uBlast(iAGN)=sqrt(2d0*f_ekAGN*EAGN(iAGN)/mAGN(iAGN))
            else
               EAGN(iAGN)=eAGN_K*epsilon_r*dMsmbh_AGN(iAGN)*(3d10/scale_v)**2d0
               p_gas(iAGN)=(1d0-f_ekAGN)*EAGN(iAGN) / vol_gas(iAGN)
+              if(p_gas(iAGN)>1D100)then
+                 write(*,*) 'pgas error 3'
+                 write(*,*) f_ekAGN, EAGN(iAGN), vol_gas(iAGN)
+              end if
               if(mAGN(iAGN).gt.0d0)uBlast(iAGN)=sqrt(2d0*f_ekAGN*EAGN(iAGN)/mAGN(iAGN))
            endif
         else
            EAGN  (iAGN)=eAGN_T*epsilon_r*dMsmbh_AGN(iAGN)*(3d10/scale_v)**2d0
            if (vol_gas(iAGN) .gt. 0d0) then
               p_gas(iAGN)=EAGN    (iAGN) / vol_gas(iAGN)
+              if(p_gas(iAGN)>1D100)then
+                 write(*,*) 'pgas error 4'
+                 write(*,*) EAGN(iAGN), vol_gas(iAGN)
+              end if
            else
               ! If the volume is 0, then p_gas is not used, but we
               ! don't want to trigger the line bellow (because of
@@ -5786,7 +5803,6 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
   end do
   EsaveAGN=0d0
   ! Loop over levels
-
 !$omp parallel private(dx,dx_loc,vol_loc,iz,iy,ix,xc,ncache) &
 !$omp & private(ngrid,ind_grid,iskip,ind_cell,ok) &
 !$omp & private(x,y,z,dxx,dyy,dzz,dr_AGN,ekk,d,etot,eint,T2_1,T2_2) &
@@ -5866,16 +5882,18 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                 uold(ind_cell(i),5)=uold(ind_cell(i),5)+p_gas(iAGN)*d
                              else
                                 uold(ind_cell(i),5)=uold(ind_cell(i),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                                if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                write(*,*) '===== Entering 1'
+                                if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                                    write(*,*) 'Esave error 1'
-                                   write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                                   write(*,*) p_gas(iAGN), ekk, etot, eint, T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                 end if
                                 EsaveAGN(iAGN)=EsaveAGN(iAGN) + (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                              endif
                           else
-                             if(p_gas(iAGN)*d*vol_loc>1E2) then
+                             write(*,*) '===== Entering 2'
+                             if(p_gas(iAGN)*d*vol_loc>1d-10) then
                                 write(*,*) 'Esave error 2'
-                                write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_lo
+                                write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_loc
                              end if
                              EsaveAGN(iAGN)=EsaveAGN(iAGN)+p_gas(iAGN)*d*vol_loc
                           endif
@@ -5989,7 +6007,8 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                    ! old internal energy (Temperature does not increase!)
                                    uold(ind_cell(i),5)=ekk+eint
                                    T2_2=(gamma-1d0)*(etot-uold(ind_cell(i),5))/d*scale_T2
-                                   if(T2_2/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                   write(*,*) '===== Entering 3'
+                                   if(T2_2/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                                       write(*,*) 'Esave error 3'
                                       write(*,*) T2_2, scale_T2, gamma, d, vol_loc, T2_2/scale_T2/(gamma-1d0)*d*vol_loc
                                    end if
@@ -6005,8 +6024,9 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                    if(T2_2 .le. T2maxAGNz)then
                                       uold(ind_cell(i),5)=ekk+T2_2/scale_T2/(gamma-1d0)*d
                                    else
+                                      write(*,*) '===== Entering 4'
                                       uold(ind_cell(i),5)=ekk+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                                      if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                      if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                                          write(*,*) 'Esave error 4'
                                          write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                       end if
@@ -6045,17 +6065,19 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                                 if(T2_2 .le. T2maxAGNz)then
                                    uold(ind_cell(i),5)=uold(ind_cell(i),5)+p_gas(iAGN)*d
                                 else
+                                   write(*,*) '===== Entering 5'
                                    uold(ind_cell(i),5)=uold(ind_cell(i),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                                   if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                                   if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                                       write(*,*) 'Esave error 5'
                                       write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                    end if
                                    EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                                 endif
                              else
-                                if(p_gas(iAGN)*d*vol_loc>1E2) then
+                                write(*,*) '===== Entering 6'
+                                if(p_gas(iAGN)*d*vol_loc>1d-10) then
                                    write(*,*) 'Esave error 6'
-                                   write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_lo
+                                   write(*,*) p_gas(iAGN), d, vol_loc, p_gas(iAGN)*d*vol_loc
                                 end if
                                 EsaveAGN(iAGN)=EsaveAGN(iAGN)+p_gas(iAGN)*d*vol_loc
                              endif
@@ -6077,9 +6099,8 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
 !$omp end do nowait
   end do
   ! End loop over levels
-!$omp end parallel
-
-!$omp parallel do private(ekk,d,etot,eint,T2_1,T2_2,d_gas,u,v,w) schedule(static)
+!$omp barrier
+!$omp do schedule(static)
   do iAGN=1,nAGN
 
      if(ind_blast(iAGN)>0)then
@@ -6107,14 +6128,18 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
               else
 !$omp atomic update
                  uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                 if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                 write(*,*) '===== Entering 7'
+                 if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                     write(*,*) 'Esave error 7'
+                    write(*,*) EAGN(iAGN), vol_blast(iAGN), eint
                     write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                    write(*,*) dx, ilevel, dx_loc, scale, ndim
                  end if
                  EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
               endif
            else
-              if(EAGN(iAGN)>1E2) then
+              write(*,*) '===== Entering 8'
+              if(EAGN(iAGN)>1d-10) then
                  write(*,*) 'Esave error 8'
                  write(*,*) EAGN(iAGN)
               end if
@@ -6161,14 +6186,18 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                  else
 !$omp atomic update
                     uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                    write(*,*) '===== Entering 9'
+                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                        write(*,*) 'Esave error 9'
+                       write(*,*) EAGN(iAGN), vol_blast(iAGN), eint
                        write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                       write(*,*) dx, ilevel, dx_loc, scale, ndim
                     end if
                     EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                  endif
               else
-                 if(EAGN(iAGN)>1E2) then
+                 write(*,*) '===== Entering 10'
+                 if(EAGN(iAGN)>1d-10) then
                     write(*,*) 'Esave error 10'
                     write(*,*) EAGN(iAGN)
                  end if
@@ -6196,14 +6225,18 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
                  else
 !$omp atomic update
                     uold(ind_blast(iAGN),5)=uold(ind_blast(iAGN),5)+T2maxAGNz/scale_T2/(gamma-1d0)*d
-                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1E2) then
+                    write(*,*) '===== Entering 11'
+                    if((T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc>1d-10) then
                        write(*,*) 'Esave error 11'
+                       write(*,*) EAGN(iAGN), vol_blast(iAGN), eint
                        write(*,*) T2_2, T2maxAGNz, scale_T2, gamma, d, vol_loc, (T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
+                       write(*,*) dx, ilevel, dx_loc, scale, ndim
                     end if
                     EsaveAGN(iAGN)=EsaveAGN(iAGN)+(T2_2-T2maxAGNz)/scale_T2/(gamma-1d0)*d*vol_loc
                  endif
               else
-                 if(EAGN(iAGN)>1E2) then
+                 write(*,*) '===== Entering 12'
+                 if(EAGN(iAGN)>1d-10) then
                     write(*,*) 'Esave error 12'
                     write(*,*) EAGN(iAGN)
                  end if
@@ -6217,6 +6250,7 @@ subroutine AGN_blast(xAGN,vAGN,dMsmbh_AGN,dMBH_AGN,dMEd_AGN,mAGN,dAGNcell,passiv
 
      endif
   end do
+!$omp end parallel
 
   if(verbose)write(*,*)'Exiting AGN_blast'
 contains
