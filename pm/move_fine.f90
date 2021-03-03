@@ -14,6 +14,7 @@ subroutine move_fine(ilevel)
   !----------------------------------------------------------------------
   integer::igrid,jgrid,ipart,jpart,next_part,ig,ip,local_counter,npart1,isink
   integer,dimension(1:nvector)::ind_grid,ind_part,ind_grid_part
+  integer,dimension(:),allocatable::idsink_inv
 #ifndef WITHOUTMPI
   integer::info
 #endif
@@ -49,6 +50,14 @@ subroutine move_fine(ilevel)
         sink_stat(isink,ilevel,:)=0d0
         sink_stat_local(isink,:)=0d0
      end do
+
+     ! Set up an inverse array of idsink
+     if (MC_tracer) then
+        allocate(idsink_inv(1:nsink))
+        do isink = 1, nsink
+           idsink_inv(idsink(isink)) = isink
+        end do
+     end if
   endif
 
 !$omp parallel private(ig,ip,ind_grid,ind_part,ind_grid_part,igrid,npart1,ipart,local_counter,next_part) reduction(+:sink_stat_local)
@@ -168,7 +177,7 @@ subroutine move_fine(ilevel)
                     xp(ipart, :) = xp(partp(ipart), :)
                     vp(ipart, :) = vp(partp(ipart), :)
                  else if (is_cloud_tracer(part_type)) then
-                    call move_sink_tracer(ipart, ilevel)
+                    call move_sink_tracer(ipart, ilevel, idsink_inv(partp(ipart)))
                  end if
 
                  ipart=next_part  ! Go to next particle
@@ -185,6 +194,9 @@ subroutine move_fine(ilevel)
      if(ip>0) call move_gas_tracer(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel,ompseed) ! MC Tracer
 !$omp end parallel
   end if
+  if (sink .and. MC_tracer) then
+     deallocate(idsink_inv)
+  end if
 
 111 format('   Entering move_fine for level ',I2)
 end subroutine move_fine
@@ -192,11 +204,11 @@ end subroutine move_fine
 !#########################################################################
 !#########################################################################
 !#########################################################################
-subroutine move_sink_tracer(ipart, ilevel)
+subroutine move_sink_tracer(ipart, ilevel, isink)
   use amr_commons
   use pm_commons
   ! Move the sinks
-  integer, intent(in) :: ipart, ilevel
+  integer, intent(in) :: ipart, ilevel, isink
   real(dp), dimension(1:ndim) :: xtmp, xsink_tmp
   real(dp) :: d2, dx, twodx
   integer :: idim
@@ -205,7 +217,7 @@ subroutine move_sink_tracer(ipart, ilevel)
   twodx = 2*dx
 
   xtmp(:) = xp(ipart, :)
-  xsink_tmp(:) = xsink(partp(ipart), :)
+  xsink_tmp(:) = xsink(isink, :)
 
   d2 = 0
   do idim = 1, ndim
@@ -228,7 +240,7 @@ subroutine move_sink_tracer(ipart, ilevel)
      xp(ipart, :) = xtmp(:)
   end if
 
-  vp(ipart, :) = vsink(partp(ipart), :)
+  vp(ipart, :) = vsink(isink, :)
 
   ! TODO: there is an issue there when a sink gets close to the
   ! boundaries, as the code does not take into account periodicity

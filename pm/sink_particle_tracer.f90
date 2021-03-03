@@ -821,7 +821,7 @@ subroutine tracer2othersink(ind_tracer, isink_new_part, xsink_loc, np)
 
      ! If the sink has changed, reattach to the new one
      if (isink_new /= 0) then
-        partp(ind_tracer(j)) = isink_new
+        partp(ind_tracer(j)) = idsink(isink_new)
 
         ! Do not move tracers there, they will be moved in move_fine.f90.
         ! xp(ind_tracer(j), :) = xsink(isink_new, :)
@@ -834,7 +834,7 @@ subroutine tracer2sink(ind_tracer, proba, xsink_loc, isink, nattach, dx_loc, see
   ! Attach tracers to a sink (accretion onto the BH)
   use amr_commons
   use random, only : ranf
-  use pm_commons, only : typep, partp, move_flag, FAM_TRACER_CLOUD
+  use pm_commons, only : typep, partp, move_flag, FAM_TRACER_CLOUD, idsink
   use random, ONLY:IRandNumSize
   implicit none
 
@@ -861,7 +861,7 @@ subroutine tracer2sink(ind_tracer, proba, xsink_loc, isink, nattach, dx_loc, see
   ! Change particle pointer and kind
   do i = 1, nattach
      if (attach(i)) then
-        partp(ind_tracer(i)) = isink(i)
+        partp(ind_tracer(i)) = idsink(isink(i))
         typep(ind_tracer(i))%family = FAM_TRACER_CLOUD
      end if
   end do
