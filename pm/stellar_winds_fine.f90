@@ -402,6 +402,7 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   real(dp),dimension(1:nchem,1:nvector)::mloss_spec
   real(dp),dimension(1:nvar)::uadd
   integer::indp_now
+  logical::ok_now
 
   msun2g=2d33
   ! starting index for passive variables except for imetal and chem
@@ -559,11 +560,13 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   ! Update hydro variables due to feedback
   uadd=0d0
   indp_now=0
+  ok_now=.true.
   do j=1,np
      if(indp(j)/=indp_now) then
         if(indp_now > 0) then
            do ivar=1,ichem+nchem-1
-!$omp atomic update
+              ! use atomic directive only if particle is not in the current grid
+!$omp atomic update if(.not. ok_now)
               unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
            end do
         end if
@@ -571,6 +574,7 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         indp_now=indp(j)
      end if
 
+     ok_now = ok_now .and. ok(j)
      ! Specific kinetic energy of the star
      ekinetic(j)=0.5*(vp(ind_part(j),1)**2 &
           &          +vp(ind_part(j),2)**2 &
@@ -595,7 +599,7 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   end do
   if(indp_now > 0) then
      do ivar=1,ichem+nchem-1
-!$omp atomic update
+!$omp atomic update if(.not. ok_now)
         unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
      end do
   end if
