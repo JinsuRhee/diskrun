@@ -566,8 +566,12 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
         if(indp_now > 0) then
            do ivar=1,ichem+nchem-1
               ! use atomic directive only if particle is not in the current grid
-!$omp atomic update if(.not. ok_now)
-              unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+              if(ok_now) then
+                 unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+              else
+!$omp atomic update
+                 unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+              end if
            end do
         end if
         uadd=0d0
@@ -599,8 +603,12 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel)
   end do
   if(indp_now > 0) then
      do ivar=1,ichem+nchem-1
-!$omp atomic update if(.not. ok_now)
-        unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+        if(ok_now) then
+           unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+        else
+!$omp atomic update
+           unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+        end if
      end do
   end if
 
