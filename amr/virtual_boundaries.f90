@@ -417,6 +417,7 @@ subroutine make_virtual_fine_dp(xx,ilevel)
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               emission(icpu,ilevel)%u(i+step,1)=xx(emission(icpu,ilevel)%igrid(i)+iskip)
            end do
@@ -446,6 +447,7 @@ subroutine make_virtual_fine_dp(xx,ilevel)
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               xx(reception(icpu,ilevel)%igrid(i)+iskip)=reception(icpu,ilevel)%u(i+step,1)
            end do
@@ -509,6 +511,7 @@ subroutine make_virtual_fine_int(xx,ilevel)
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               emission(icpu,ilevel)%f(i+step,1)=xx(emission(icpu,ilevel)%igrid(i)+iskip)
            end do
@@ -538,6 +541,7 @@ subroutine make_virtual_fine_int(xx,ilevel)
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               xx(reception(icpu,ilevel)%igrid(i)+iskip)=reception(icpu,ilevel)%f(i+step,1)
            end do
@@ -589,6 +593,7 @@ subroutine make_virtual_reverse_dp(xx,ilevel)
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               icell=reception(icpu,ilevel)%igrid(i)+iskip
               ibuf=i+step
@@ -647,6 +652,7 @@ subroutine make_virtual_reverse_dp(xx,ilevel)
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               xx(emission(icpu,ilevel)%igrid(i)+iskip)= &
                    & xx(emission(icpu,ilevel)%igrid(i)+iskip) + emission(icpu,ilevel)%u(i+step,1)
@@ -678,6 +684,7 @@ subroutine make_virtual_reverse_dp(xx,ilevel)
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               reception(icpu,ilevel)%u(i+step,1)=xx(reception(icpu,ilevel)%igrid(i)+iskip)
            end do
@@ -708,6 +715,7 @@ subroutine make_virtual_reverse_dp(xx,ilevel)
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               xx(emission(icpu,ilevel)%igrid(i)+iskip)= &
                    & xx(emission(icpu,ilevel)%igrid(i)+iskip) + emission(icpu,ilevel)%u(i+step,1)
@@ -755,12 +763,13 @@ subroutine make_virtual_reverse_int(xx,ilevel)
   if(ilevel.le.switchlevel) then
 
   ! Gather emission array
-!$$omp parallel do private(step,iskip,icell,ibuf) collapse(2) schedule(dynamic,nchunk)
+!$omp parallel do private(step,iskip,icell,ibuf) collapse(2) schedule(dynamic,nchunk)
   do j=1,twotondim
      do icpu=1,ncpu
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               icell=reception(icpu,ilevel)%igrid(i)+iskip
               ibuf=i+step
@@ -811,12 +820,13 @@ subroutine make_virtual_reverse_int(xx,ilevel)
   end do
 
   ! Scatter reception array
-!$$omp parallel do private(step,iskip) collapse(2) schedule(dynamic,nchunk)
+!$omp parallel do private(step,iskip) collapse(2) schedule(dynamic,nchunk)
   do j=1,twotondim
      do icpu=1,ncpu
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               xx(emission(icpu,ilevel)%igrid(i)+iskip)= &
                    & xx(emission(icpu,ilevel)%igrid(i)+iskip) + emission(icpu,ilevel)%f(i+step,1)
@@ -827,8 +837,8 @@ subroutine make_virtual_reverse_int(xx,ilevel)
 
   else
 
-!$$omp parallel private(step,iskip)
-!$$omp single
+!$omp parallel private(step,iskip)
+!$omp single
   ! Receive all messages
   countrecv=0
   do icpu=1,ncpu
@@ -839,15 +849,16 @@ subroutine make_virtual_reverse_int(xx,ilevel)
              & MPI_INTEGER,icpu-1,tag,MPI_COMM_WORLD,reqrecv(countrecv),info)
      end if
   end do
-!$$omp end single nowait
+!$omp end single nowait
 
   ! Gather emission array
-!$$omp do collapse(2)
+!$omp do collapse(2)
   do j=1,twotondim
      do icpu=1,ncpu
         if (reception(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*reception(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,reception(icpu,ilevel)%ngrid
               reception(icpu,ilevel)%f(i+step,1)=xx(reception(icpu,ilevel)%igrid(i)+iskip)
            end do
@@ -855,7 +866,7 @@ subroutine make_virtual_reverse_int(xx,ilevel)
      end do
   end do
 
-!$$omp single
+!$omp single
   ! Send all messages
   countsend=0
   do icpu=1,ncpu
@@ -869,15 +880,16 @@ subroutine make_virtual_reverse_int(xx,ilevel)
 
   ! Wait for full completion of receives
   call MPI_WAITALL(countrecv,reqrecv,statuses,info)
-!$$omp end single
+!$omp end single
 
   ! Scatter reception array
-!$$omp do
+!$omp do
   do j=1,twotondim
      do icpu=1,ncpu
         if (emission(icpu,ilevel)%ngrid>0) then
            iskip=ncoarse+(j-1)*ngridmax
            step=(j-1)*emission(icpu,ilevel)%ngrid
+!$omp simd
            do i=1,emission(icpu,ilevel)%ngrid
               xx(emission(icpu,ilevel)%igrid(i)+iskip)= &
                    & xx(emission(icpu,ilevel)%igrid(i)+iskip) + emission(icpu,ilevel)%f(i+step,1)
@@ -885,7 +897,7 @@ subroutine make_virtual_reverse_int(xx,ilevel)
         end if
      end do
   end do
-!$$omp end parallel
+!$omp end parallel
   ! Wait for full completion of sends
   call MPI_WAITALL(countsend,reqsend,statuses,info)
 

@@ -480,6 +480,7 @@ subroutine add_pdv_source_terms(ilevel)
 !$omp parallel do private(ngrid,ind_grid) schedule(static)
   do igrid=1,ncache,nvector
      ngrid = MIN(nvector,ncache-igrid+1)
+!$omp simd
      do i=1,ngrid
         ind_grid(i)=active(ilevel)%igrid(igrid+i-1)
      end do

@@ -102,11 +102,13 @@ subroutine unsplit(uin,gravin,pin,flux,tmp,dx,dy,dz,dt,ngrid)
   do j=jlo,jhi
   do k=klo,khi
      do ivar=1,nvar
+!$omp simd
         do l=1,ngrid
            flux(l,i,j,k,ivar,1)=fx(l,i,j,k,ivar)*dt/dx
         end do
      end do
      do ivar=1,2
+!$omp simd
         do l=1,ngrid
            tmp (l,i,j,k,ivar,1)=tx(l,i,j,k,ivar)*dt/dx
         end do
@@ -125,11 +127,13 @@ subroutine unsplit(uin,gravin,pin,flux,tmp,dx,dy,dz,dt,ngrid)
   do j=jf1,jf2
   do k=klo,khi
      do ivar=1,nvar
+!$omp simd
         do l=1,ngrid
            flux(l,i,j,k,ivar,2)=fx(l,i,j,k,ivar)*dt/dy
         end do
      end do
      do ivar=1,2
+!$omp simd
         do l=1,ngrid
            tmp (l,i,j,k,ivar,2)=tx(l,i,j,k,ivar)*dt/dy
         end do
@@ -149,11 +153,13 @@ subroutine unsplit(uin,gravin,pin,flux,tmp,dx,dy,dz,dt,ngrid)
   do j=jlo,jhi
   do k=kf1,kf2
      do ivar=1,nvar
+!$omp simd
         do l=1,ngrid
            flux(l,i,j,k,ivar,3)=fx(l,i,j,k,ivar)*dt/dz
         end do
      end do
      do ivar=1,2
+!$omp simd
         do l=1,ngrid
            tmp (l,i,j,k,ivar,3)=tx(l,i,j,k,ivar)*dt/dz
         end do
@@ -751,18 +757,21 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
         do i = ilo, ihi
 
            ! Mass density
+!$omp simd
            do l = 1, ngrid
               qleft (l,1) = qm(l,i,j,k,1,xdim)
               qright(l,1) = qp(l,i,j,k,1,xdim)
            end do
 
            ! Normal velocity
+!$omp simd
            do l = 1, ngrid
               qleft (l,2) = qm(l,i,j,k,ln,xdim)
               qright(l,2) = qp(l,i,j,k,ln,xdim)
            end do
 
            ! Pressure
+!$omp simd
            do l = 1, ngrid
               qleft (l,3) = qm(l,i,j,k,ndim+2,xdim)
               qright(l,3) = qp(l,i,j,k,ndim+2,xdim)
@@ -770,6 +779,7 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
 
            ! Tangential velocity 1
 #if NDIM>1
+!$omp simd
            do l = 1, ngrid
               qleft (l,4) = qm(l,i,j,k,lt1,xdim)
               qright(l,4) = qp(l,i,j,k,lt1,xdim)
@@ -777,6 +787,7 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
 #endif
            ! Tangential velocity 2
 #if NDIM>2
+!$omp simd
            do l = 1, ngrid
               qleft (l,5) = qm(l,i,j,k,lt2,xdim)
               qright(l,5) = qp(l,i,j,k,lt2,xdim)
@@ -785,6 +796,7 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
 #if NVAR > NDIM + 2
            ! Other advected quantities
            do n = ndim+3, nvar
+!$omp simd
               do l = 1, ngrid
                  qleft (l,n) = qm(l,i,j,k,n,xdim)
                  qright(l,n) = qp(l,i,j,k,n,xdim)
@@ -810,28 +822,33 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
            ! Compute fluxes
 
            ! Mass density
+!$omp simd
            do l = 1, ngrid
               flx(l,i,j,k,1) = fgdnv(l,1)
            end do
 
            ! Normal momentum
+!$omp simd
            do l = 1, ngrid
               flx(l,i,j,k,ln) = fgdnv(l,2)
            end do
 
            ! Transverse momentum 1
 #if NDIM>1
+!$omp simd
            do l = 1, ngrid
               flx(l,i,j,k,lt1) = fgdnv(l,4)
            end do
 #endif
            ! Transverse momentum 2
 #if NDIM>2
+!$omp simd
            do l = 1, ngrid
               flx(l,i,j,k,lt2) = fgdnv(l,5)
            end do
 #endif
            ! Total energy
+!$omp simd
            do l = 1, ngrid
               flx(l,i,j,k,ndim+2) = fgdnv(l,3)
            end do
@@ -839,16 +856,19 @@ subroutine cmpflxm(qm,im1,im2,jm1,jm2,km1,km2, &
 #if NVAR > NDIM + 2
            ! Other advected quantities
            do n = ndim+3, nvar
+!$omp simd
               do l = 1, ngrid
                  flx(l,i,j,k,n) = fgdnv(l,n)
               end do
            end do
 #endif
            ! Normal velocity
+!$omp simd
            do l = 1, ngrid
               tmp(l,i,j,k,1) = half*(qleft(l,2)+qright(l,2))
            end do
            ! Internal energy flux
+!$omp simd
            do l = 1,ngrid
               tmp(l,i,j,k,2) = fgdnv(l,nvar+1)
            end do
@@ -892,6 +912,7 @@ subroutine ctoprim(uin,q,c,gravin,dt,ngrid)
   do k = ku1, ku2
      do j = ju1, ju2
         do i = iu1, iu2
+!$omp simd
            do l = 1, ngrid
 
               ! Compute density
@@ -956,6 +977,7 @@ subroutine ctoprim(uin,q,c,gravin,dt,ngrid)
      do k = ku1, ku2
         do j = ju1, ju2
            do i = iu1, iu2
+!$omp simd
               do l = 1, ngrid
                  oneoverrho = one/q(l,i,j,k,1)
                  q(l,i,j,k,n) = uin(l,i,j,k,n)*oneoverrho
