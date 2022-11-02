@@ -447,6 +447,7 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,dM_pr
   integer::indp_now
   real(dp)::zz,dd1,dd2,zzg ! YD Debug WARNING
   real(dp),dimension(1:ndust)::dM_prod_SW_local
+  logical::ok_now
 
   msun2g=2d33
   ! starting index for passive variables except for imetal and chem
@@ -521,6 +522,10 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,dM_pr
   ok(1:np)=.true.
   do j=1,np
      ok(j)=ok(j).and.igrid(j)>0
+     if(ok(j) .and. kg(j) /= 14)then
+         write(*,*) 'ERROR: partcle in neighboring grid outside of its parent'
+         stop
+     end if
   end do
 
   ! Compute parent cell position
@@ -618,17 +623,29 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,dM_pr
   ! Update hydro variables due to feedback
   uadd=0d0
   indp_now=0
+  ok_now=.true.
   do j=1,np
      if(indp(j)/=indp_now) then
         if(indp_now > 0) then
            do ivar=1,ichem+nchem+ndust-1
+              ! use atomic directive only if particle is not in the current grid
+              if(uadd(ivar) > 0d0) then
+                 if(ok_now) then
+                    unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+                 else ! particle is in ouside grid with lower level
 !$omp atomic update
-              unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+                    unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+                 end if
+              end if
            end do
         end if
         uadd=0d0
+        ok_now=.true.
         indp_now=indp(j)
      end if
+
+     ! Check if particle is in current grid
+     ok_now = ok_now .and. ok(j)
 
      ! Specific kinetic energy of the star
      ekinetic(j)=0.5*(vp(ind_part(j),1)**2 &
@@ -688,8 +705,14 @@ subroutine stellar_winds_dump(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,dM_pr
   end do
   if(indp_now > 0) then
      do ivar=1,ichem+nchem+ndust-1
+        if(uadd(ivar) > 0d0) then
+           if(ok_now) then
+              unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+           else
 !$omp atomic update
-        unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+              unew(indp_now,ivar)=unew(indp_now,ivar)+uadd(ivar)
+           end if
+        end if
      end do
   end if
 
