@@ -403,6 +403,89 @@ subroutine refine_fine(ilevel)
 #endif
     call ranf(tracer_seed,rand)
 
+  !-----------------------------------------------------
+  ! Case 2: if cell is not flagged for refinement,but
+  ! it is refined, then destroy its child grid.
+  !-----------------------------------------------------
+  nkill=0
+!$omp parallel private(ibound,boundary_region,ncache) &
+!$omp & private(ngrid,ind_grid,iskip,ind_cell,ok,nkill_tmp,icell,ind_cell_tmp) reduction(+:nkill)
+  do icpu=1,ncpu+nboundary  ! Loop over cpus and boundaries
+     if(icpu==myid)then
+        ibound=0
+        boundary_region=.false.
+        ncache=active(ilevel)%ngrid
+     else if(icpu<=ncpu)then
+        ibound=0
+        boundary_region=.false.
+        ncache=reception(icpu,ilevel)%ngrid
+     else
+        ibound=icpu-ncpu
+        boundary_region=.true.
+        ncache=boundary(ibound,ilevel)%ngrid
+     end if
+!$omp do
+     do igrid=1,ncache,nvector  ! Loop over grids
+        ngrid=MIN(nvector,ncache-igrid+1)
+        if(myid==icpu)then
+           do i=1,ngrid
+              ind_grid(i)=active(ilevel)%igrid(igrid+i-1)
+           end do
+        else if(icpu<=ncpu)then
+           do i=1,ngrid
+              ind_grid(i)=reception(icpu,ilevel)%igrid(igrid+i-1)
+           end do
+        else
+           do i=1,ngrid
+              ind_grid(i)=boundary(ibound,ilevel)%igrid(igrid+i-1)
+           end do
+        end if
+        do ind=1,twotondim     ! Loop over cells
+           iskip=ncoarse+(ind-1)*ngridmax
+           do i=1,ngrid
+              ind_cell(i)=iskip+ind_grid(i)
+           end do
+           if(shrink)then
+              ! Gather unauthorized and refined cells
+              do i=1,ngrid
+                 ok(i)= flag2(ind_cell(i))==0 .and. &
+                      & son  (ind_cell(i))>0
+              end do
+           else
+              ! Gather unflagged and refined cells
+              do i=1,ngrid
+                 ok(i)= flag1(ind_cell(i))==0 .and. &
+                      & son  (ind_cell(i))>0
+              end do
+           endif
+           ! Count cells for de-refinement
+           nkill_tmp=0
+           do i=1,ngrid
+              if(ok(i))then
+                 nkill_tmp=nkill_tmp+1
+              end if
+           end do
+           nkill=nkill+nkill_tmp
+           ! De-refine selected cells
+           if(nkill_tmp>0)then
+              icell=0
+              do i=1,ngrid
+                 if(ok(i))then
+                    icell=icell+1
+                    ind_cell_tmp(icell)=ind_cell(i)
+                 end if
+              end do
+              call pre_kill_grid_hook(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
+              call kill_grid(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
+              call post_kill_grid_hook(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
+           end if
+        end do  ! End loop over cells
+     end do
+!$omp end do nowait
+  end do
+!$omp end parallel
+  if(verbose)write(*,113)nkill
+
   !------------------------------------
   ! Refine cells marked for refinement
   !------------------------------------
@@ -499,89 +582,6 @@ subroutine refine_fine(ilevel)
   used_mem=ngridmax-numbf
   if(verbose)write(*,112)ncreate
   endif
-
-  !-----------------------------------------------------
-  ! Case 2: if cell is not flagged for refinement,but
-  ! it is refined, then destroy its child grid.
-  !-----------------------------------------------------
-  nkill=0
-!$omp parallel private(ibound,boundary_region,ncache) &
-!$omp & private(ngrid,ind_grid,iskip,ind_cell,ok,nkill_tmp,icell,ind_cell_tmp) reduction(+:nkill)
-  do icpu=1,ncpu+nboundary  ! Loop over cpus and boundaries
-     if(icpu==myid)then
-        ibound=0
-        boundary_region=.false.
-        ncache=active(ilevel)%ngrid
-     else if(icpu<=ncpu)then
-        ibound=0
-        boundary_region=.false.
-        ncache=reception(icpu,ilevel)%ngrid
-     else
-        ibound=icpu-ncpu
-        boundary_region=.true.
-        ncache=boundary(ibound,ilevel)%ngrid
-     end if
-!$omp do
-     do igrid=1,ncache,nvector  ! Loop over grids
-        ngrid=MIN(nvector,ncache-igrid+1)
-        if(myid==icpu)then
-           do i=1,ngrid
-              ind_grid(i)=active(ilevel)%igrid(igrid+i-1)
-           end do
-        else if(icpu<=ncpu)then
-           do i=1,ngrid
-              ind_grid(i)=reception(icpu,ilevel)%igrid(igrid+i-1)
-           end do
-        else
-           do i=1,ngrid
-              ind_grid(i)=boundary(ibound,ilevel)%igrid(igrid+i-1)
-           end do
-        end if
-        do ind=1,twotondim     ! Loop over cells
-           iskip=ncoarse+(ind-1)*ngridmax
-           do i=1,ngrid
-              ind_cell(i)=iskip+ind_grid(i)
-           end do
-           if(shrink)then
-              ! Gather unauthorized and refined cells
-              do i=1,ngrid
-                 ok(i)= flag2(ind_cell(i))==0 .and. &
-                      & son  (ind_cell(i))>0
-              end do
-           else
-              ! Gather unflagged and refined cells
-              do i=1,ngrid
-                 ok(i)= flag1(ind_cell(i))==0 .and. &
-                      & son  (ind_cell(i))>0
-              end do
-           endif
-           ! Count cells for de-refinement
-           nkill_tmp=0
-           do i=1,ngrid
-              if(ok(i))then
-                 nkill_tmp=nkill_tmp+1
-              end if
-           end do
-           nkill=nkill+nkill_tmp
-           ! De-refine selected cells
-           if(nkill_tmp>0)then
-              icell=0
-              do i=1,ngrid
-                 if(ok(i))then
-                    icell=icell+1
-                    ind_cell_tmp(icell)=ind_cell(i)
-                 end if
-              end do
-              call pre_kill_grid_hook(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
-              call kill_grid(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
-              call post_kill_grid_hook(ind_cell_tmp,ilevel+1,nkill_tmp,ibound,boundary_region)
-           end if
-        end do  ! End loop over cells
-     end do
-!$omp end do nowait
-  end do
-!$omp end parallel
-  if(verbose)write(*,113)nkill
 
   ! Compute grid number statistics at level ilevel+1
 #ifndef WITHOUTMPI
