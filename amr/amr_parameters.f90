@@ -215,7 +215,8 @@ module amr_parameters
   real(dp)::jetfrac=0.0d0     ! Fraction of accreted mass before releasing jet AGN energy
   real(dp)::Mseed  =1.0d5     ! Mass of the initial sink particle in solar mass
   real(dp)::Mdragmax=-1.      ! Maximum mass of the sink particle to activate drag boost
-  real(dp)::boost_acc=2.0d0   ! Boost power factor for the accretion rate
+  real(dp)::boost_acc=1.0d0   ! Boost power factor for the accretion rate, scales with gas density above limit
+  real(dp)::boost_res=1.0d0 ! Boost power factor for the accretion rate, scales with bondi radius below resolution
   real(dp)::boost_drag=2.0d0  ! Boost power factor for drag force
   real(dp)::boost_drag_part=0.0d0  ! Boost power factor for particle drag force
   real(dp)::r_gal  =1.0d2     ! SMBH sphere radius of influence in kpc

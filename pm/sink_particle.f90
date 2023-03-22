@@ -2690,6 +2690,7 @@ subroutine grow_bondi(ilevel)
   real(dp),dimension(1:3)::velocity
   real(dp)::fourpi,prefact
   real(dp)::r_bondi,r_acc
+  real(dp)::dx,nx_loc,scale,dx_loc
 
   ! OMP
   integer,dimension(1:IRandNumSize),save :: ompseed
@@ -2703,6 +2704,11 @@ subroutine grow_bondi(ilevel)
   call units(scale_l,scale_t,scale_d,scale_v,scale_nH,scale_T2)
   scale_m=scale_d*scale_l**3d0
   nfloor = omega_b*rhoc/aexp**3*XH/mH/scale_nH
+
+  dx=0.5D0**ilevel
+  nx_loc=(icoarse_max-icoarse_min+1)
+  scale=boxlen/dble(nx_loc)
+  dx_loc=dx*scale
 
   onethird=1d0/3d0
   fourpi=2d0*twopi
@@ -2783,7 +2789,13 @@ subroutine grow_bondi(ilevel)
      v_avgptr(isink)=dsqrt(SUM((velocity(1:3)-vsink(isink,1:3))**2))
      v2mean =min(SUM((velocity(1:3)-vsink(isink,1:3))**2),sigmav2)
      total_volume(isink)=volume
-     alpha=max((density/(d_boost/scale_nH))**boost_acc,1d0)
+
+     alpha=(density/(d_boost/scale_nH))**boost_acc
+     if(boost_res > 0d0)then
+         alpha=min(alpha,(dx_loc/r2sink(isink)**0.5d0)**boost_res)
+     end if
+     alpha=max(alpha,1d0)
+
      if(Esave(isink).eq.0d0 .and. volume>0d0)then
         dMBHoverdt(isink)=alpha * fourpi *density* (factG*msink(isink))**2 &
              & / (c2mean+v2mean)**1.5d0
