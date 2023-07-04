@@ -130,22 +130,8 @@ subroutine mechanical_feedback_fine(ilevel,icount)
     call ranf(tracer_seed,rand)
 
   ! MC Tracer =================================================
-  ! Reset tmpp array that contains the probability to be detached from the particle
-  if (MC_tracer) then
-!$omp parallel do private(igrid,npart1,ipart)
-     do jgrid=1,active(ilevel)%ngrid
-        igrid=active(ilevel)%igrid(jgrid)
-        npart1=numbp(igrid)  ! Number of particles in the grid
-        ! Count star particles
-        if(npart1>0)then
-           ipart=headp(igrid)
-           do jpart=1,npart1
-              if(is_star(typep(ipart))) tmpp(ipart) = 0d0
-              ipart=nextp(ipart)
-           end do
-        end if
-     end do
-  end if
+  ! Reset tmpp array that contains the probability to move away from cell
+  if (MC_tracer) tmpp(:) = 0
   ! End MC Tracer
 
   ! Type II Supernova frequency per Msun

@@ -2834,20 +2834,13 @@ subroutine grow_bondi(ilevel)
      end if
   end do
 
-
-!$omp parallel private(ig,ip,ind_part,ind_grid,ind_grid_part,igrid,npart1,npart2,ipart,next_part,isink,counter)
+  ! Loop over cpus
   do icpu=1,ncpu
+     igrid=headl(icpu,ilevel)
      ig=0
      ip=0
-     isink=0
      ! Loop over grids
-!$omp do schedule(dynamic,nchunk)
      do jgrid=1,numbl(icpu,ilevel)
-        if(icpu==myid)then
-           igrid=active(ilevel)%igrid(jgrid)
-        else
-           igrid=reception(icpu,ilevel)%igrid(jgrid)
-        end if
         npart1=numbp(igrid)  ! Number of particles in the grid
         npart2=0
 
@@ -2871,7 +2864,6 @@ subroutine grow_bondi(ilevel)
            ig=ig+1
            ind_grid(ig)=igrid
            ipart=headp(igrid)
-           counter = 0
            ! Loop over particles
            do jpart=1,npart1
               ! Save next particle   <--- Very important !!!
@@ -2879,15 +2871,6 @@ subroutine grow_bondi(ilevel)
               ! Select only sink particles
               !if(idp(ipart).lt.0 .and. tp(ipart).eq.0.d0)then
               if (is_cloud(typep(ipart))) then
-                 ! Force only one isink to pass accrete_bondi (Huge performance gain!)
-                 if(ip==nvector.or.isink/=-idp(ipart))then
-                    if(isink/=0) then
-                       call accrete_bondi(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel,ompseed,isink)
-                       ip=0
-                       ig=0
-                    end if
-                    isink=-idp(ipart)
-                 end if
                  if(ig==0)then
                     ig=1
                     ind_grid(ig)=igrid
@@ -2895,22 +2878,24 @@ subroutine grow_bondi(ilevel)
                  ip=ip+1
                  ind_part(ip)=ipart
                  ind_grid_part(ip)=ig
-                 counter = counter + 1
+              endif
+              if(ip==nvector)then
+                 call accrete_bondi(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel,ompseed)
+                 ip=0
+                 ig=0
               endif
               ipart=next_part  ! Go to next particle
            end do
            ! End loop over particles
-           if (counter == 0 .and. ig > 0) then
-              ig = ig - 1
            end if
-        end if
+
+        igrid=next(igrid)   ! Go to next grid
      end do
-!$omp end do nowait
+
      ! End loop over grids
-     if(ip>0)call accrete_bondi(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel,ompseed,isink)
+     if(ip>0)call accrete_bondi(ind_grid,ind_part,ind_grid_part,ig,ip,ilevel,ompseed)
   end do
   ! End loop over cpus
-!$omp end parallel
 
   if(exact_timer) call timer('mpi','start')
   if(nsink>0)then
@@ -3007,15 +2992,11 @@ end subroutine grow_bondi
 !################################################################
 !################################################################
 !################################################################
-subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink)
+subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
   use amr_commons
   use pm_commons
   use hydro_commons
   use cooling_module, ONLY: rhoc, mH, twopi
-  use random, ONLY:IRandNumSize
-#ifdef _OPENMP
-  use omp_lib
-#endif
   ! AGNRT
 #ifdef RT
   use rt_parameters,only: nGroups, iGroups, group_egy, rt_AGN
@@ -3023,13 +3004,13 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
 #endif
   !/AGNRT
   implicit none
-  integer::ng,np,ilevel,ic,ng2
+  integer::ng,np,ilevel
   integer,dimension(1:nvector)::ind_grid
   integer,dimension(1:nvector)::ind_grid_part,ind_part
   !-----------------------------------------------------------------------
   ! This routine is called by subroutine bondi_hoyle.
   !-----------------------------------------------------------------------
-  integer::i,j,idim,nx_loc,isink,jpart,ind,ind_grid_now
+  integer::i,j,idim,nx_loc,isink
   real(dp)::r2,d,u,v,w,e
 #ifdef SOLVERmhd
   real(dp)::bx1,bx2,by1,by2,bz1,bz2
@@ -3055,10 +3036,6 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
   real(dp)::scale_nH,scale_T2,scale_l,scale_d,scale_t,scale_v,pi,d_star
   real(dp)::epsilon_r, Deltat, ddt, dvdrag_norm
   ! Temporal arrays
-  real(dp)::dMBH_coarse_add,dMEd_coarse_add,dMsmbh_add,msink_add
-  real(dp),dimension(1:ndim)::vsink_add
-  real(dp),dimension(1:nvector)::acc_part
-  real(dp),dimension(1:nvector,1:twotondim)::acc_cell
   real(dp),parameter::myr2s=3.1536000d+13
 
 #ifdef RT
@@ -3224,21 +3201,9 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
      end if
   end do
 
-  ! Init temporal arrays
-  dMBH_coarse_add=0d0; dMEd_coarse_add=0d0; dMsmbh_add=0d0; msink_add=0d0; vsink_add=0d0
-  DF_factor_add=0d0;
-
-  if(spin_bh)then
-     epsilon_r=eps_sink(isink)
-  else
-     epsilon_r=0.1d0
-  endif
-  if(mad_jet)then
-     if(dMBHoverdt(isink)/dMEdoverdt(isink).lt.X_floor)then
-        ! from Benson & Babul 2009, for an ADAF
-        epsilon_r=epsilon_r*(dMBHoverdt(isink)/(X_floor*dMEdoverdt(isink)))
-     endif
-  endif
+  ! MC tracer
+  ! Init local index
+  ii = 0
 
   ! If there is no feedback, accrete 100% of the removed mass
   if(.not.sink_AGN)then
@@ -3304,12 +3269,11 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
 
         ! Add the accreted mass to the total accreted mass over
         ! a coarse time step
-        !! OMP note: store temporary value for adding to common array later.
-        dMBH_coarse_add=dMBH_coarse_add + &
+        dMBH_coarse_new(isink)=dMBH_coarse_new(isink) + &
              & dMBHoverdt(isink)*weight/total_volume(isink)*dtnew(ilevel)
-        dMEd_coarse_add=dMEd_coarse_add + &
+        dMEd_coarse_new(isink)=dMEd_coarse_new(isink) + &
              & dMEdoverdt(isink)*weight/total_volume(isink)*dtnew(ilevel)
-        dMsmbh_add     =dMsmbh_add      + dmsink
+        dMsmbh_new     (isink)=dMsmbh_new     (isink) + dmsink
 
 ! AGNRT
 #ifdef RT
@@ -3319,13 +3283,13 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
 #endif
 !/AGNRT
 
-        msink_add=msink_add+dmsink
-        vsink_add(1)=vsink_add(1)+dmsink*u
+        msink_new(isink  )=msink_new(isink  )+dmsink
+        vsink_new(isink,1)=vsink_new(isink,1)+dmsink*u
 #if NDIM>1
-        vsink_add(2)=vsink_add(2)+dmsink*v
+        vsink_new(isink,2)=vsink_new(isink,2)+dmsink*v
 #endif
 #if NDIM>2
-        vsink_add(3)=vsink_add(3)+dmsink*w
+        vsink_new(isink,3)=vsink_new(isink,3)+dmsink*w
 #endif
 
         vp(ind_part(j),1)=mp(ind_part(j))*vp(ind_part(j),1)+dmsink*u
@@ -3338,8 +3302,31 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
 
         ! Store accreted mass from cell
         if (MC_tracer) then
-           acc_part(j) = acc_mass
-           !acc_cell(ind_grid_part(j),icell(j)) = acc_cell(ind_grid_part(j),icell(j)) + acc_mass
+           ! MC Tracer
+           ! The gas is coming from the central cell (and the tracers)
+           proba = acc_mass / vol_loc / d
+           itracer = headp(igrid(j))
+
+           do i = 1, numbp(igrid(j))
+              ! Select gas tracer particles within current cell that
+              ! havn't been moved.
+              if (is_gas_tracer(typep(itracer)) .and. move_flag(itracer) == 0 .and. &
+                   partp(itracer) == indp(j)) then
+                 ii = ii + 1
+                 ind_tracer(ii) = itracer
+                 proba_tracer(ii) = proba
+                 ! TODO: check whether to use xsink/xsink_new
+                 xsink_loc(ii, :) = xsink_new(isink, :)
+                 ind_sink(ii) = isink
+
+                 if (ii == nvector) then
+                    call tracer2sink(ind_tracer, proba_tracer, &
+                         xsink_loc, ind_sink, ii, dx_loc)
+                    ii = 0
+                 end if
+              end if
+              itracer = nextp(itracer)
+           end do
         end if
 
         d=d-acc_mass/vol_loc
@@ -3420,8 +3407,8 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
                     vsink_add(idim)=vsink_add(idim)+dvdrag*weight/total_volume(isink)*msink(isink)
                  else
                     dpdrag(idim)=mp(ind_part(j))*dvdrag
-                    vsink_add(idim)=vsink_add(idim)+dvdrag*mp(ind_part(j))
-                 end if
+                 vp(ind_part(j),idim)=vp(ind_part(j),idim)+dvdrag
+                 vsink_new(isink,idim)=vsink_new(isink,idim)+dvdrag*mp(ind_part(j))
               enddo
 
               ! HP: updates on the gas DF
@@ -3454,80 +3441,16 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed,isink
         endif
 #endif
         !/AGNRT
-     endif
-  end do
 
-  if (MC_tracer) then
-     acc_cell=0d0
-     i=0
-     ind_grid=0
-     ind_grid_now=0
-     do j=1,np
-        if(ok(j)) then
-           if(isink/=-idp(ind_part(j))) then
-              write(*,*) 'Error on accrete_bondi', myid, j, isink, -idp(ind_part(j)), ind_part(j)
-           end if
-           if(i == 0 .or. ind_grid_now /= igrid(j)) then
-              i=i+1
-              ind_grid_now=igrid(j)
-              ind_grid(i)=igrid(j)
-           end if
-           acc_cell(i,icell(j)) = &
-                 & acc_cell(i,icell(j)) + acc_part(j)
-        end if
-     end do
-     ng2=i
-     ! MC Tracer
-     ! Init local index
-     ii = 0
-     ! The gas is coming from the central cell (and the tracers)
-     do i=1,ng2
-        itracer = headp(ind_grid(i))
-        do jpart=1,numbp(ind_grid(i))
-           if(is_gas_tracer(typep(itracer)) .and. move_flag(itracer) == 0) then
-              ! Check in which cell tracer particle is on
-              do ind=1,twotondim
-                 acc_mass = acc_cell(i,ind)
-                 ic=ncoarse+(ind-1)*ngridmax+ind_grid(i)
-                 if(partp(itracer) == ic .and. acc_mass>0d0) then
-                    d = max(uold(ic,1), smallr)
-                    !if(uold<=smallr)d=0d0
-                    proba = acc_mass / (d * vol_loc + acc_mass)
-                    ii = ii + 1
-                    ind_tracer(ii) = itracer
-                    proba_tracer(ii) = proba
-                    ! TODO: check whether to use xsink/xsink_new
-                    xsink_loc(ii, :) = xsink_new(isink, :)
-                    ind_sink(ii) = isink
-                    if (ii == nvector) then
-                       call tracer2sink(ind_tracer, proba_tracer, &
-                             xsink_loc, ind_sink, ii, dx_loc, seed)
-                       ii = 0
                     end if
-                 end if
+
               end do
-           end if
-           itracer=nextp(itracer)
-        end do
-     end do
-     if (ii > 0) then
+
+  if (MC_tracer .and. ii > 0) then
         call tracer2sink(ind_tracer, proba_tracer, &
-             xsink_loc, ind_sink, ii, dx_loc, seed)
-     end if
+          xsink_loc, ind_sink, ii, dx_loc, seed)
   end if
 
-!$omp atomic update
-  dMBH_coarse_new(isink)=dMBH_coarse_new(isink)+dMBH_coarse_add
-!$omp atomic update
-  dMEd_coarse_new(isink)=dMEd_coarse_new(isink)+dMEd_coarse_add
-!$omp atomic update
-  dMsmbh_new(isink)=dMsmbh_new(isink)+dMsmbh_add
-!$omp atomic update
-  msink_new(isink)=msink_new(isink)+msink_add
-  do idim=1,ndim
-!$omp atomic update
-     vsink_new(isink,idim)=vsink_new(isink,idim)+vsink_add(idim)
-  end do
 !$omp atomic update
   DF_factor_new(isink,1)=DF_factor_new(isink,1)+DF_factor_add
 

@@ -8,8 +8,6 @@ module poisson_commons
   real(dp),allocatable,dimension(:,:) :: v_star            ! Star velocity
   real(dp),allocatable,dimension(:,:) :: f                 ! 3-force
   !real(dp),allocatable,dimension(:,:) :: fcg               ! cg parameters
-  integer, allocatable,dimension(:)   :: addrl             ! linear addressing
-  integer, allocatable,dimension(:,:) :: nborl             ! neighbors in linear addressing
 
   real(dp),allocatable,dimension(:)  ::rho_top   ! Density at last CIC level
 
