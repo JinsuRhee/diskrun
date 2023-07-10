@@ -255,8 +255,8 @@ subroutine make_sink(ilevel)
   ! Convert hydro variables to primitive variables
   !------------------------------------------------
   ncache=active(ilevel)%ngrid
-!$omp parallel do private(ngrid,ind_grid,iskip,ind_cell) &
-!$omp & private(d,u,v,w,e) schedule(static)
+!$omp parallel do default(none) private(ngrid,ind_grid,iskip,ind_cell) &
+!$omp & private(d,u,v,w,e) schedule(static) shared(ncache,active,ilevel,ncoarse,ngridmax,uold,smallr,flag2,imetal)
   do igrid=1,ncache,nvector
      ngrid=MIN(nvector,ncache-igrid+1)
      do i=1,ngrid
@@ -313,8 +313,11 @@ subroutine make_sink(ilevel)
   ntot=0
   ! Loop over grids
   ncache=active(ilevel)%ngrid
-!$omp parallel do private(ngrid,ind_grid,iskip,ind_cell,ok) &
-!$omp & private(d,x,y,z,star_ratio,temp,d_jeans,d_thres,dxx,dyy,dzz,dr_sink,rmax_sink2) reduction(+:ntot) schedule(static)
+!$omp parallel do default(none) private(ngrid,ind_grid,iskip,ind_cell,ok,d,x,y,z,star_ratio,temp,d_jeans,d_thres,dxx, &
+!$omp & dyy,dzz,dr_sink,rmax_sink2) shared(ncache,active,ilevel,ncoarse,ngridmax,son,uold,smallr,rho_star,gamma, &
+!$omp & smallc,dx_loc,factG,star,d_star,ds_sink,dd_sink,sig_sink,flag2,force_exact_mseed,mseed,scale_m,xg,xc, &
+!$omp & skip_loc,scale,nsink,ds2_sink,rmax_sink,rmin_sink,xsink,x_half,x_box,y_half,y_box,z_half,z_box) &
+!$omp & reduction(+:ntot) schedule(static)
   do igrid=1,ncache,nvector
      ngrid=MIN(nvector,ncache-igrid+1)
      do i=1,ngrid
@@ -441,7 +444,9 @@ subroutine make_sink(ilevel)
   rmax_sink2 = rmax_sink**2
   ! Loop over grids
   ncache=active(ilevel)%ngrid
-!$omp parallel do private(ngrid,ind_grid,iskip,ind_cell,nnew,ninc_omp) schedule(static)
+!$omp parallel do default(none) shared(ncache,active,ilevel,ncoarse,ngridmax,flag2,ninc,x_tmp,izero_myid,xg,xc, &
+!$omp & skip_loc,scale,dens_tmp,rho_star,flag_tmp,point2flag2) &
+!$omp & private(ngrid,ind_grid,iskip,ind_cell,nnew,ninc_omp) schedule(static)
   do igrid=1,ncache,nvector
      ngrid=MIN(nvector,ncache-igrid+1)
      do i=1,ngrid
@@ -481,7 +486,9 @@ subroutine make_sink(ilevel)
   flag_tmp=flag_tmp_all
   deallocate(x_tmp_all,dens_tmp_all,flag_tmp_all)
 #endif
-!$omp parallel do private(x,y,z,dxx,dyy,dzz,dr_sink) schedule(static)
+! OMP note: deactivated here to prevent flat_tmp from being changed concurrently
+!!$omp parallel do default(none) shared(ntot_tmp,x_tmp,x_half,x_box,y_half,y_box,z_half,z_box,rmax_sink2, &
+!!$omp & dens_tmp,flag_tmp) private(x,y,z,dxx,dyy,dzz,dr_sink) schedule(static)
   do i=1,ntot_tmp
      if(flag_tmp(i).eq.1)then
         x=x_tmp(i,1);y=x_tmp(i,2);z=x_tmp(i,3)
@@ -611,9 +618,14 @@ subroutine make_sink(ilevel)
 
   ! Loop over grids
   ncache=active(ilevel)%ngrid
-!$omp parallel do private(ngrid,ind_grid,iskip,ind_cell,nnew,ind_grid_new,ind_cell_new,ind_grid_cloud) &
-!$omp private(ind_part_cloud,ind_cloud,itracer,np,ind_tracer,proba_part,ind_sink,xsink_loc) &
-!$omp & private(d,u,v,w,e,x,y,z,temp,d_jeans,d_thres,proba,index_sink_omp,index_sink_tot_omp) schedule(static)
+!$omp parallel do default(none) shared(ncache,active,ilevel,ngridmax,flag2,index_sink,index_sink_tot,uold, &
+!$omp & smallr,stellar_velocity_seed,v_star,rho_star,xg,xc,skip_loc,scale,gamma,smallc,dx_loc,factG,msink_new, &
+!$omp & Mseed,scale_m,dMsmbh_new,Esave_new,Efeed_new,oksink_new,bhspin_new,spinmag_new,ncoarse,drag_part, &
+!$omp & v_DFnew,mass_lowspeednew,fact_fastnew,n_partnew,ok_true,tp,mp,levelp,idp,typep,xp,vp,idsink_new,tsink_new, &
+!$omp & birth_epoch,xsink_new,vsink_new,MC_tracer,headp,numbp,partp,move_flag,xsink,nextp,mass_DFnew) &
+!$omp & private(ngrid,ind_grid,iskip,ind_cell,nnew,ind_grid_new,ind_cell_new,ind_grid_cloud, &
+!$omp & ind_part_cloud,ind_cloud,itracer,np,ind_tracer,proba_part,ind_sink,xsink_loc, &
+!$omp & d,u,v,w,e,x,y,z,temp,d_jeans,d_thres,proba,index_sink_omp,index_sink_tot_omp) schedule(static)
   do igrid=1,ncache,nvector
      ngrid=MIN(nvector,ncache-igrid+1)
      do i=1,ngrid
@@ -768,8 +780,8 @@ subroutine make_sink(ilevel)
   ! Convert hydro variables back to conservative variables
   !---------------------------------------------------------
   ncache=active(ilevel)%ngrid
-!$omp parallel do private(ngrid,ind_grid,iskip,ind_cell) &
-!$omp & private(d,u,v,w,e) schedule(static)
+!$omp parallel do default(none) shared(ncache,active,ilevel,ncoarse,ngridmax,uold,smallr,imetal) &
+!$omp & private(ngrid,ind_grid,iskip,ind_cell,d,u,v,w,e) schedule(static)
   do igrid=1,ncache,nvector
      ngrid=MIN(nvector,ncache-igrid+1)
      do i=1,ngrid
@@ -1396,7 +1408,9 @@ subroutine merge_sink(ilevel)
   ! Remove sink particles that are part of a FOF group.
   !-----------------------------------------------------
   ! Loop over cpus
-!$omp parallel private(ig,ip,ind_part,ind_grid_part,igrid,npart1,npart2,ipart,next_part,ind_grid,isink_old,isink_new)
+!$omp parallel default(none) shared(ncpu,numbl,ilevel,myid,active,reception,numbp,headp,nextp,typep, &
+!$omp & MC_tracer,partp,gsink) &
+!$omp & private(ig,ip,ind_part,ind_grid_part,igrid,npart1,npart2,ipart,next_part,ind_grid,isink_old,isink_new)
   do icpu=1,ncpu
      ig=0
      ip=0
@@ -1632,10 +1646,11 @@ subroutine create_cloud_from_sink
   rmass=dble(ir_cloud_massive)*dx_min
 
   ! Create cloud
-!$omp parallel private(ip,is_central,xrel,rr,xcloud,xtest,in_box,ind_sink)
+!$omp parallel default(none) shared(ir_cloud,dx_min,rmax,nsink,xsink,period,boxlen,ind_grid) &
+!$omp & private(ip,is_central,xrel,rr,xcloud,xtest,in_box,ind_sink)
    ip = 0
    is_central=.false.
-!$omp do collapse(3) schedule(dynamic,nchunk)
+!$omp do collapse(3) schedule(static)
   do kk=-2*ir_cloud,2*ir_cloud
   do jj=-2*ir_cloud,2*ir_cloud
   do ii=-2*ir_cloud,2*ir_cloud
