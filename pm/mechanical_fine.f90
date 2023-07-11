@@ -1790,7 +1790,7 @@ function ran1(idum)
    implicit none
    integer:: idum,IA,IM,IQ,IR,NTAB,NDIV
    real(kind=8):: ran1,AM,EPS,RNMX
-   integer::j,k,iv(NTAB),iy
+   integer::j,k,iv(32),iy
 
    IA=16807; IM=2147483647; AM=1./IM; IQ=127773; IR=2836;
    NTAB=32; NDIV=1+(IM-1)/NTAB; EPS=1.2e-7; RNMX=1.-EPS
