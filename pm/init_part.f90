@@ -73,7 +73,7 @@
   integer::kpart,lpart,mpart,opart,gpart,ngas,nhalo
   !integer, dimension(nvector)::ids
   real(dp)::scale_nH,scale_T2,scale_l,scale_d,scale_t,scale_v,scale_m
-  real(dp),dimension(1:nvector)::tt,zz,uu
+  real(dp),dimension(1:nvector)::tt,uu
   real,dimension(1:nvector,1:3)::xx_sp,vv_sp
   real,dimension(1:nvector)::mm_sp,tt_sp,zz_sp,uu_sp
   real(dp)::mgas_tot
