@@ -3404,7 +3404,6 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
                  dvdrag = fdrag(idim)*ddt  ! HP: replaced dtnew(ilevel) by ddt
                  if(weighted_drag .and. total_volume(isink)>0d0)then
                     dpdrag(idim)=weight/total_volume(isink)*msink(isink)*dvdrag
-                    vsink_add(idim)=vsink_add(idim)+dvdrag*weight/total_volume(isink)*msink(isink)
                  else
                     dpdrag(idim)=mp(ind_part(j))*dvdrag
                  vp(ind_part(j),idim)=vp(ind_part(j),idim)+dvdrag
