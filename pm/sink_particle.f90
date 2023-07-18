@@ -3210,7 +3210,6 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
      epsilon_r=0d0
   endif
 
-  acc_part=0d0
   ! Remove mass from hydro cells
   do j=1,np
      if(ok(j))then
@@ -3404,10 +3403,12 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
                  dvdrag = fdrag(idim)*ddt  ! HP: replaced dtnew(ilevel) by ddt
                  if(weighted_drag .and. total_volume(isink)>0d0)then
                     dpdrag(idim)=weight/total_volume(isink)*msink(isink)*dvdrag
+                    vsink_new(isink,idim)=vsink_new(isink,idim)+dvdrag*weight/total_volume(isink)*msink(isink)
                  else
                     dpdrag(idim)=mp(ind_part(j))*dvdrag
+                    vsink_new(isink,idim)=vsink_new(isink,idim)+dvdrag*weight/total_volume(isink)*msink(isink)
+                 end if
                  vp(ind_part(j),idim)=vp(ind_part(j),idim)+dvdrag
-                 vsink_new(isink,idim)=vsink_new(isink,idim)+dvdrag*mp(ind_part(j))
               enddo
 
               ! HP: updates on the gas DF
