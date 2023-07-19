@@ -3320,7 +3320,7 @@ subroutine accrete_bondi(ind_grid,ind_part,ind_grid_part,ng,np,ilevel,seed)
 
                  if (ii == nvector) then
                     call tracer2sink(ind_tracer, proba_tracer, &
-                         xsink_loc, ind_sink, ii, dx_loc)
+                         xsink_loc, ind_sink, ii, dx_loc, seed)
                     ii = 0
                  end if
               end if
